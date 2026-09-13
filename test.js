@@ -77,7 +77,7 @@ test('missing-permissions: 显式 permissions: {} 不报', () => {
 });
 
 test('hardcoded-secret: env 下裸密码报 medium（排除 \${{ secrets.* }}）', () => {
-  const c = `jobs:\n  build:\n    env:\n      TOKEN: ghp_aBcDeFgHiJkLmNoPqRsTuVwXyZ0123456789\n    steps:\n      - run: echo hi\n`;
+  const c = `jobs:\n  build:\n    env:\n      TOKEN: ghp_EXAMPLE_FAKE_TOKEN_FOR_TEST_PURPOSES_ONLY\n    steps:\n      - run: echo hi\n`;
   assert.ok(has(c, 'hardcoded-secret'));
 });
 
