@@ -1,20 +1,29 @@
 # ghadoctor
 
-GitHub Actions 配置卫生体检 CLI（零依赖单文件）。
+[![CI](https://github.com/huanweide/ghadoctor/actions/workflows/ci.yml/badge.svg)](https://github.com/huanweide/ghadoctor/actions/workflows/ci.yml)
+[![版本](https://img.shields.io/github/package-json/v/huanweide/ghadoctor)](https://github.com/huanweide/ghadoctor)
+[![许可证: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/huanweide/ghadoctor)](https://github.com/huanweide/ghadoctor/stargazers)
 
-family 第 18 轴：CI 配置卫生（git 层治理第五件，与 repodoctor / docdoctor /
-commitdoctor / reldoctor 拼成 git 层治理五件套）。
+**ghadoctor 是一个开源的 GitHub Actions 配置卫生体检工具：帮任何使用 GitHub Actions 的团队，零依赖、一行命令揪出 CI 安全/配置坏味道（Action 未锁定 SHA、脚本注入、过宽权限、pull_request_target 风险等），开箱即跑、带健康分与 CI 门禁。**
+
+← [回到代码健康家族总览](https://github.com/huanweide/family-showcase) · [枢纽 doctors](https://github.com/huanweide/doctors)
+
+*family 第 18 轴：CI 配置卫生（git 层治理第五件，与 repodoctor / docdoctor /
+commitdoctor / reldoctor 拼成 git 层治理五件套）。*
+
+> **English**: ghadoctor is an open-source, zero-dependency, single-file CLI that audits your GitHub Actions workflows for security & config smells (unpinned actions, script injection, over-broad permissions, `pull_request_target` checkout, missing `permissions`/`timeout`/`concurrency`). One command, no install, with a 0–100 health score and a CI gate (exit code 0 / 2 / 3). See [Install](#install--run) and [Options](#options).
 
 > 差异化：actionlint / zizmor 是重型工具（需装 / 编译 / 配置），ghadoctor 是
 > 零依赖单文件、确定性强、开箱即跑，并附健康分 + CI 门禁，填补「轻量零依赖」
 > 缝隙（与 family 一贯范式一致：重型工具占满 → 我们做零依赖轻量版）。
 
-## 安装 / 运行
+## 安装 / 运行（Install / Run）
 
-零依赖，仅需 Node.js（>=16）。无需 `npm install`：
+零依赖，仅需 Node.js（>=18，测试依赖 `node --test`）。无需 `npm install`：
 
 ```bash
-node ghadoctor.js [--root <dir>]
+node index.js [--root <dir>]
 ```
 
 ## 能力
@@ -64,6 +73,8 @@ ghadoctor · GitHub Actions 配置卫生体检
 CI 门禁: PASS
 ```
 
+> 门禁三态（第 9.9 / 10.2 / 11.1 轮固化）：`PASS`(0) / `FAIL`(2，配置了阈值且不达标) / `INCONCLUSIVE`(3，未配置任何阈值或扫描输入为空)。**空扫描不会给满分**——未扫描到任何工作流文件时健康分显示「无法评估」、`summary.basisComplete=false`、退出码 3，而非假「100 分 PASS」。这与同族门禁工具契约一致。
+
 ## CI 集成
 
 ```yaml
@@ -80,19 +91,21 @@ jobs:
       - uses: actions/setup-node@a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
         with:
           node-version: 22
-      - run: node ghadoctor.js --fail-on-high --min-score 90
+      - run: node index.js --fail-on-high --min-score 90
 ```
 
 ## 约束
 
 - 纯 fs 只读，不执行、不联网、不调用 YAML 解析库（line-scanner + 轻量缩进跟踪，确定性强）。
 - 输出禁用 emoji，跨平台终端 / CI 日志渲染一致。
-- `--json` 模式只输出纯 JSON，门禁结果用进程退出码（0=通过 / 2=失败）表达。
+- `--json` 模式只输出纯 JSON，门禁结果用进程退出码表达：`0`=通过 / `2`=不达标 / `3`=结论不可信（未配置阈值或输入为空）。
 
 ## 测试
 
+需要 Node.js >=18（测试依赖 `node --test`）：
+
 ```bash
-node --test
+node --test test.js && node test/smoke-cli.js
 ```
 
 ---

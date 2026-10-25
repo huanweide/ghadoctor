@@ -1,0 +1,41 @@
+name: ci
+on:
+  push:
+    branches: [master]
+  pull_request:
+permissions: {}
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: ${{ matrix.node }}
+      - name: 单测 + 冒烟（spawn 级退出码契约）
+        shell: bash
+        run: |
+          node --test test.js
+          node test/smoke-cli.js
+  dogfood:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 20
+      - name: 用 ghadoctor 体检自己的 CI 配置（必须 0 问题）
+        shell: bash
+        run: |
+          node index.js --root . --fail-on-high --json > /tmp/ghadoctor-self.json
+          node -e "const j=require('/tmp/ghadoctor-self.json'); if(j.summary.issues!==0){console.error('自身 CI 配置体检未归零: '+j.summary.issues+' 问题'); process.exit(1);} console.log('dogfood OK, issues=0, score='+j.summary.score);"
