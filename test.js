@@ -176,3 +176,46 @@ test('scanWorkflow: 超大文件(>5MB)跳过不崩', () => {
   fs.writeFileSync(p, 'a'.repeat(6 * 1024 * 1024));
   assert.deepEqual(scanWorkflow(p), []);
 });
+
+// ---- 参数容错（家族第 10.4 轮：NaN 静默传播 / 未知选项静默吞 / 缺值）----
+// parseArgs 在用法错误时抛 isUsage 异常（由 main 捕获后退出码 2），单测直接断言抛异常。
+
+test('parseArgs: --max-high abc 必须报错（NaN 静默传播坑）', () => {
+  assert.throws(() => parseArgs(['--max-high', 'abc']), /整数参数/);
+});
+
+test('parseArgs: --max-high 空串必须报错（Number("")=0 静默通过坑）', () => {
+  assert.throws(() => parseArgs(['--max-high', '']), /整数参数/);
+});
+
+test('parseArgs: --max-high 2.5 必须报错（小数让门禁静默失效坑）', () => {
+  assert.throws(() => parseArgs(['--max-high', '2.5']), /整数参数/);
+});
+
+test('parseArgs: --min-score -1 是合法整数（不做哨兵误判）', () => {
+  assert.equal(parseArgs(['--min-score', '-1']).minScore, -1);
+});
+
+test('parseArgs: --max-high 3 是合法整数', () => {
+  assert.equal(parseArgs(['--max-high', '3']).maxHigh, 3);
+});
+
+test('parseArgs: 未知长选项必须报错', () => {
+  assert.throws(() => parseArgs(['--totally-unknown']), /未知选项/);
+});
+
+test('parseArgs: 未知短标志 -x 必须报错（不能只拦 -- 开头）', () => {
+  assert.throws(() => parseArgs(['-x']), /未知选项/);
+});
+
+test('parseArgs: --root 缺值必须报错', () => {
+  assert.throws(() => parseArgs(['--root']), /缺少路径参数/);
+});
+
+test('parseArgs: --root 后接另一个选项必须报缺值（不能把 --json 当目录名吞掉）', () => {
+  assert.throws(() => parseArgs(['--root', '--json']), /缺少路径参数/);
+});
+
+// ---- 门禁三态 / 有害指标：exit-code 契约由 test/smoke-cli.js 用真实进程验证 ----
+// 这里仅覆盖「可被 require 直接验证」的部分：空扫描场景下 summary 由 main 计算，
+// 故退出码与 score=null 统一交给 spawn 冒烟测试钉死（避免 monkey-patch process.exit 的假测试）。

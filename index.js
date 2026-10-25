@@ -18,10 +18,20 @@
  *
  * 约束：纯 fs 只读，不执行、不联网、不调 yaml 解析库（line-scanner + 轻量
  * 缩进跟踪，确定性强）。输出禁用 emoji（用 [HIGH]/[MED]/[LOW]）。
+ *
+ * 门禁契约（family 门禁三态，第 9.9 / 10.2 / 11.1 轮固化）：
+ *   pass(0)        配置了阈值 + 输入可信 + 指标达标
+ *   fail(2)        配置了阈值 + 至少一项不达标
+ *   inconclusive(3) 未配置任何阈值（纯报告模式） 或 扫描输入为空（结论不可信）
+ *   空扫描不得给满分（有害指标）：basisComplete=false 时健康分一律 null。
  */
 
 const fs = require('fs');
 const path = require('path');
+
+const USAGE =
+  '用法: ghadoctor [--root <dir>] [--json] [--fail-on-high] [--max-high N] ' +
+  '[--max-medium N] [--max-issues N] [--min-score N] [--quiet]';
 
 // ---------------------------------------------------------------------------
 // 规则与权重
@@ -256,37 +266,38 @@ function parseArgs(argv) {
     }
     if (STR_FLAGS.has(a)) {
       const v = argv[++i];
-      if (v === undefined) { fail(`选项 ${a} 缺少路径参数`); return; }
+      // 缺值或下一个 token 是另一个选项 → 视为缺值（防止把 --json 当目录名吞掉）
+      if (v === undefined || v.startsWith('-')) { fail(`选项 ${a} 缺少路径参数`); return; }
       opts.root = v;
       continue;
     }
     if (NUM_FLAGS.has(a)) {
-      const v = argv[++i];
-      if (v === undefined || !Number.isFinite(Number(v))) {
+      const raw = argv[++i];
+      // 缺值 / 空串 / 非有限数 / 非整数 → 一律拒绝（NaN 静默传播是家族头号坑）
+      const tv = String(raw === undefined ? '' : raw).trim();
+      if (tv === '' || !Number.isFinite(Number(tv)) || !Number.isInteger(Number(tv))) {
         fail(`选项 ${a} 需要整数参数`);
         return;
       }
-      const key = a.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-      // 映射：--max-high -> maxHigh, --min-score -> minScore, 等
-      if (a === '--max-high') opts.maxHigh = Number(v);
-      else if (a === '--max-medium') opts.maxMedium = Number(v);
-      else if (a === '--max-issues') opts.maxIssues = Number(v);
-      else if (a === '--min-score') opts.minScore = Number(v);
+      if (a === '--max-high') opts.maxHigh = Number(tv);
+      else if (a === '--max-medium') opts.maxMedium = Number(tv);
+      else if (a === '--max-issues') opts.maxIssues = Number(tv);
+      else if (a === '--min-score') opts.minScore = Number(tv);
       continue;
     }
     if (a === '--') continue;
     // 位置参数当作 root
     if (!a.startsWith('-')) { opts.root = a; continue; }
-    fail(`未知选项: ${a}`);
+    fail(`未知选项: ${a}（家族铁律：任何未知选项一律退出码 2，不得静默忽略）`);
     return;
   }
   return opts;
 }
 
 function fail(msg) {
-  process.stderr.write(`ghadoctor: ${msg}\n`);
-  process.stderr.write('用法: ghadoctor [--root <dir>] [--json] [--fail-on-high] [--max-high N] [--max-medium N] [--max-issues N] [--min-score N] [--quiet]\n');
-  process.exit(2);
+  const e = new Error(msg);
+  e.isUsage = true;
+  throw e;
 }
 
 // ---------------------------------------------------------------------------
@@ -294,87 +305,119 @@ function fail(msg) {
 // ---------------------------------------------------------------------------
 
 function main() {
-  const opts = parseArgs(process.argv.slice(2));
-  if (opts === undefined) return; // parseArgs 已 fail 退出
-  if (opts.help) {
-    process.stdout.write(
-      'ghadoctor — GitHub Actions 配置卫生体检 CLI（零依赖单文件）\n\n' +
-      '用法:\n' +
-      '  ghadoctor [--root <dir>]           扫描当前/指定目录的 .github/workflows\n' +
-      '  ghadoctor --json                   输出纯 JSON（不含其他文本）\n' +
-      '  ghadoctor --fail-on-high           存在 HIGH 问题时退出码 2\n' +
-      '  ghadoctor --max-high N             HIGH 超过 N 退出码 2\n' +
-      '  ghadoctor --max-medium N           超过 N 退出码 2\n' +
-      '  ghadoctor --max-issues N           问题总数超过 N 退出码 2\n' +
-      '  ghadoctor --min-score N            总体健康分低于 N 退出码 2\n' +
-      '  ghadoctor --quiet                  仅打印总览\n'
-    );
-    return;
-  }
-
-  let root = opts.root;
   try {
-    const st = fs.statSync(root);
-    if (!st.isDirectory()) { fail(`根路径不是目录: ${root}`); return; }
-  } catch {
-    fail(`根路径不存在: ${root}`);
-    return;
-  }
-
-  const files = findWorkflowFiles(root);
-  const fileReports = [];
-  let totalHigh = 0, totalMedium = 0, totalLow = 0;
-
-  for (const f of files) {
-    const issues = scanWorkflow(f);
-    let h = 0, m = 0, l = 0;
-    for (const it of issues) {
-      if (it.severity === 'high') h++;
-      else if (it.severity === 'medium') m++;
-      else l++;
+    const opts = parseArgs(process.argv.slice(2));
+    if (opts.help) {
+      process.stdout.write(
+        'ghadoctor — GitHub Actions 配置卫生体检 CLI（零依赖单文件）\n\n' +
+        '用法:\n' +
+        '  ghadoctor [--root <dir>]           扫描当前/指定目录的 .github/workflows\n' +
+        '  ghadoctor --json                   输出纯 JSON（不含其他文本）\n' +
+        '  ghadoctor --fail-on-high           存在 HIGH 问题时退出码 2\n' +
+        '  ghadoctor --max-high N             HIGH 超过 N 退出码 2\n' +
+        '  ghadoctor --max-medium N           超过 N 退出码 2\n' +
+        '  ghadoctor --max-issues N           问题总数超过 N 退出码 2\n' +
+        '  ghadoctor --min-score N            总体健康分低于 N 退出码 2\n' +
+        '  ghadoctor --quiet                  仅打印总览\n'
+      );
+      return;
     }
-    totalHigh += h; totalMedium += m; totalLow += l;
-    fileReports.push({
-      path: f,
-      score: scoreFile(issues),
-      counts: { high: h, medium: m, low: l },
-      issues,
-    });
+
+    let root = opts.root;
+    try {
+      const st = fs.statSync(root);
+      if (!st.isDirectory()) { fail(`根路径不是目录: ${root}`); return; }
+    } catch {
+      fail(`根路径不存在: ${root}`);
+      return;
+    }
+
+    const files = findWorkflowFiles(root);
+    const fileReports = [];
+    let totalHigh = 0, totalMedium = 0, totalLow = 0;
+
+    for (const f of files) {
+      const issues = scanWorkflow(f);
+      let h = 0, m = 0, l = 0;
+      for (const it of issues) {
+        if (it.severity === 'high') h++;
+        else if (it.severity === 'medium') m++;
+        else l++;
+      }
+      totalHigh += h; totalMedium += m; totalLow += l;
+      fileReports.push({
+        path: f,
+        score: scoreFile(issues),
+        counts: { high: h, medium: m, low: l },
+        issues,
+      });
+    }
+
+    const totalIssues = totalHigh + totalMedium + totalLow;
+    const basisComplete = files.length > 0;
+    const overall = basisComplete
+      ? Math.round(fileReports.reduce((s, r) => s + r.score, 0) / fileReports.length)
+      : null; // 空扫描给 null，绝不给满分（有害指标，第 11 轮）
+
+    const summary = {
+      files: files.length,
+      issues: totalIssues,
+      high: totalHigh,
+      medium: totalMedium,
+      low: totalLow,
+      score: overall,
+      basisComplete,
+    };
+
+    // 门禁三态（第 9.9 / 10.2 / 11.1 轮固化）
+    const configured = opts.failOnHigh
+      || opts.maxHigh !== Infinity
+      || opts.maxMedium !== Infinity
+      || opts.maxIssues !== Infinity
+      || opts.minScore >= 0;
+
+    let gateState, gateReason, exitCode = 0, fails = [];
+    if (!configured) {
+      gateState = 'inconclusive';
+      gateReason = '未配置任何门禁阈值（纯报告模式，退出码恒为 0）';
+      exitCode = 0;
+    } else if (!basisComplete) {
+      gateState = 'inconclusive';
+      gateReason = '未扫描到任何工作流文件，门禁结论不可信（输入为空）';
+      exitCode = 3;
+    } else {
+      let passed = true;
+      if (opts.failOnHigh && totalHigh > 0) { passed = false; fails.push(`存在 HIGH 问题: ${totalHigh}`); }
+      if (totalHigh > opts.maxHigh) { passed = false; fails.push(`HIGH ${totalHigh} > ${opts.maxHigh}`); }
+      if (totalMedium > opts.maxMedium) { passed = false; fails.push(`MEDIUM ${totalMedium} > ${opts.maxMedium}`); }
+      if (totalIssues > opts.maxIssues) { passed = false; fails.push(`ISSUES ${totalIssues} > ${opts.maxIssues}`); }
+      if (opts.minScore >= 0 && overall < opts.minScore) { passed = false; fails.push(`SCORE ${overall} < ${opts.minScore}`); }
+      gateState = passed ? 'pass' : 'fail';
+      gateReason = passed ? '' : fails.join('; ');
+      exitCode = passed ? 0 : 2;
+    }
+    const gate = { state: gateState, configured, basisComplete, reason: gateReason, passed: gateState === 'pass', fails };
+
+    if (opts.json) {
+      const out = { files: fileReports, summary, gate };
+      process.stdout.write(JSON.stringify(out, null, 2) + '\n');
+    } else {
+      printText(fileReports, summary, gate, opts.quiet);
+    }
+
+    process.exitCode = exitCode; // 用 exitCode 而非 process.exit，避免截断 stdout（第 7.3 轮）
+  } catch (e) {
+    if (e && e.isUsage) {
+      process.stderr.write(`ghadoctor: ${e.message}\n`);
+      process.stderr.write(USAGE + '\n');
+      process.exitCode = 2;
+      return;
+    }
+    throw e;
   }
-
-  const totalIssues = totalHigh + totalMedium + totalLow;
-  const overall = files.length === 0 ? 100
-    : Math.round(fileReports.reduce((s, r) => s + r.score, 0) / fileReports.length);
-
-  const summary = {
-    files: files.length,
-    issues: totalIssues,
-    high: totalHigh,
-    medium: totalMedium,
-    low: totalLow,
-    score: overall,
-  };
-
-  // CI 门禁判定
-  let gatePassed = true;
-  const fails = [];
-  if (opts.failOnHigh && totalHigh > 0) { gatePassed = false; fails.push('存在 HIGH 问题'); }
-  if (totalHigh > opts.maxHigh) { gatePassed = false; fails.push(`HIGH ${totalHigh} > ${opts.maxHigh}`); }
-  if (totalMedium > opts.maxMedium) { gatePassed = false; fails.push(`MEDIUM ${totalMedium} > ${opts.maxMedium}`); }
-  if (totalIssues > opts.maxIssues) { gatePassed = false; fails.push(`ISSUES ${totalIssues} > ${opts.maxIssues}`); }
-  if (opts.minScore >= 0 && overall < opts.minScore) { gatePassed = false; fails.push(`SCORE ${overall} < ${opts.minScore}`); }
-
-  if (opts.json) {
-    const out = { files: fileReports, summary, gate: { passed: gatePassed, fails } };
-    process.stdout.write(JSON.stringify(out, null, 2) + '\n');
-  } else {
-    printText(fileReports, summary, gatePassed, fails, opts.quiet);
-  }
-
-  if (!gatePassed) process.exit(2);
 }
 
-function printText(fileReports, summary, gatePassed, fails, quiet) {
+function printText(fileReports, summary, gate, quiet) {
   const w = process.stdout.write.bind(process.stdout);
   w('ghadoctor · GitHub Actions 配置卫生体检\n\n');
   if (fileReports.length === 0) {
@@ -396,13 +439,16 @@ function printText(fileReports, summary, gatePassed, fails, quiet) {
   if (!quiet) {
     w('总览: 扫描 ' + summary.files + ' 文件, ' + summary.issues + ' 问题 (' +
       summary.high + ' HIGH / ' + summary.medium + ' MED / ' + summary.low + ' LOW)\n');
-    w('总体健康分: ' + summary.score + '\n');
+    if (summary.basisComplete) {
+      w('总体健康分: ' + summary.score + '\n');
+    } else {
+      w('总体健康分: 无法评估（未扫描到任何工作流文件，数字无意义）\n');
+    }
   }
-  if (gatePassed) {
-    w('CI 门禁: PASS\n');
-  } else {
-    w('CI 门禁: FAIL (' + fails.join('; ') + ')\n');
-  }
+  // 门禁状态行必须始终打印（防止「没消息就是通过」的误读，第 10.2 轮）
+  if (gate.state === 'pass') w('CI 门禁: PASS\n');
+  else if (gate.state === 'fail') w('CI 门禁: FAIL (' + gate.reason + ')\n');
+  else w('CI 门禁: 未启用（' + gate.reason + '）\n');
 }
 
 if (require.main === module) {

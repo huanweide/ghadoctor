@@ -1,0 +1,28 @@
+{
+  "lastOptimized": "2026-10-25",
+  "round": 1,
+  "status": "optimized",
+  "direction": "单点深度特化（门禁三态契约 + star 呈现层）",
+  "improvements": [
+    "修复有害指标：空扫描不再给满分 100，改 score=null + basisComplete=false",
+    "门禁三态固化：pass(0)/fail(2)/inconclusive(3)，未配阈值或空输入不再谎报 PASS",
+    "JSON 门禁输出增加 state/configured/basisComplete/reason（不再只有布尔 passed）",
+    "退出码改用 process.exitCode 替代 process.exit(2)，避免截断 stdout（第 7.3 轮）",
+    "参数容错：数值参数强制整数 + 空串拒绝；--root 缺值/接选项报错；未知选项一律 rc=2",
+    "补 LICENSE(MIT) + package.json(engines>=18) + CI(ubuntu/windows × Node18/20/22 + dogfood 自体检归零)",
+    "新增 test/smoke-cli.js（spawn 级退出码契约）+ 9 项新单测 + 3 例变异测试全拦",
+    "README：顶部 badges + 品类主张 + 英文摘要 + 顶部家族导流 + 修死命令 ghadoctor.js→index.js + 版本对齐 18"
+  ],
+  "decisionLog": [
+    "存活评估：actionlint/zizmor 是重型工具，零依赖轻量缝隙无碾压级替代，保留并坚守 family 范式",
+    "方向：单点深度特化门禁真实性（家族最高频缺陷）而非堆功能",
+    "决策原因：ghadoctor 实测命中家族第 9.9/10.2/11.1 轮三类门禁缺陷，修它们是 star 转化的信任地基",
+    "退出码改写：process.exit 在 Linux 会截断 --json 输出，改用 exitCode（第 9.5/10.9 轮平台特性）",
+    "dogfood 自体检：CI 自身 .github/workflows/ci.yml 全部 action pin 到 SHA，确保归零不红"
+  ],
+  "selfErrors": [
+    "起初 README 安装命令写 ghadoctor.js（实际入口 index.js）——死命令，已改",
+    "Node 版本曾写 >=16 与测试依赖 node --test(18+) 矛盾，已对齐 18（第 8.4 轮陷阱）"
+  ],
+  "pr": ""
+}
