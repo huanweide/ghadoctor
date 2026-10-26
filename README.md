@@ -1,3 +1,10 @@
+> [!WARNING]
+> **⚠️ 本轴已并入 [doctors](https://github.com/huanweide/doctors) 家族 monorepo → 本仓停止维护。**
+>
+> 代码原件已迁至 [`doctors/packages/ghadoctor/`](https://github.com/huanweide/doctors/tree/main/packages/ghadoctor)，
+> 在 doctors 里以 `doctors gha` 子命令调用（或 `node packages/ghadoctor/index.js`）。
+> 本仓不再接受新改动，请前往 <https://github.com/huanweide/doctors>。
+
 **🔧 Part of the [Engineering Health Family](https://github.com/huanweide/family-showcase)** (18 zero-dependency checkup axes). Standalone tool — see [doctors](https://github.com/huanweide/doctors) (monorepo) and [enghealth](https://github.com/huanweide/enghealth) (unified runner).
 
 # ghadoctor
