@@ -1,3 +1,5 @@
+**🔧 Part of the [Engineering Health Family](https://github.com/huanweide/family-showcase)** (18 zero-dependency checkup axes). Standalone tool — see [doctors](https://github.com/huanweide/doctors) (monorepo) and [enghealth](https://github.com/huanweide/enghealth) (unified runner).
+
 # ghadoctor
 
 [![CI](https://github.com/huanweide/ghadoctor/actions/workflows/ci.yml/badge.svg)](https://github.com/huanweide/ghadoctor/actions/workflows/ci.yml)
