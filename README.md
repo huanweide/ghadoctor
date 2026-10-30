@@ -1,11 +1,13 @@
+English: 暂未提供
+
 > [!WARNING]
-> **⚠️ 本轴已并入 [doctors](https://github.com/huanweide/doctors) 家族 monorepo → 本仓停止维护。**
+> **⚠️ 本工具已并入 [doctors](https://github.com/huanweide/doctors) monorepo → 本仓停止维护。**
 >
 > 代码原件已迁至 [`doctors/packages/ghadoctor/`](https://github.com/huanweide/doctors/tree/main/packages/ghadoctor)，
 > 在 doctors 里以 `doctors gha` 子命令调用（或 `node packages/ghadoctor/index.js`）。
 > 本仓不再接受新改动，请前往 <https://github.com/huanweide/doctors>。
 
-**🔧 Part of the [Engineering Health Family](https://github.com/huanweide/family-showcase)** (18 zero-dependency checkup axes). Standalone tool — see [doctors](https://github.com/huanweide/doctors) (monorepo) and [enghealth](https://github.com/huanweide/enghealth) (unified runner).
+**🔧 本工具属于 [huanweide 零依赖 CLI 系列](https://github.com/huanweide/family-showcase)（共 18 件单文件工具）。可单独使用，也可在 [doctors](https://github.com/huanweide/doctors) monorepo 中以子命令调用，或用 [enghealth](https://github.com/huanweide/enghealth) 统一运行。**
 
 # ghadoctor
 
@@ -16,18 +18,17 @@
 
 **ghadoctor 是一个开源的 GitHub Actions 配置卫生体检工具：帮任何使用 GitHub Actions 的团队，零依赖、一行命令揪出 CI 安全/配置坏味道（Action 未锁定 SHA、脚本注入、过宽权限、pull_request_target 风险等），开箱即跑、带健康分与 CI 门禁。**
 
-← [回到代码健康家族总览](https://github.com/huanweide/family-showcase) · [枢纽 doctors](https://github.com/huanweide/doctors)
+← [回到零依赖 CLI 系列总览](https://github.com/huanweide/family-showcase) · [枢纽 doctors](https://github.com/huanweide/doctors)
 
-*family 第 18 轴：CI 配置卫生（git 层治理第五件，与 repodoctor / docdoctor /
-commitdoctor / reldoctor 拼成 git 层治理五件套）。*
+*属于 huanweide 零依赖 CLI 系列，聚焦 CI 配置卫生（与 repodoctor / docdoctor / commitdoctor / reldoctor 等同属 git 层治理工具）。*
 
-> **English**: ghadoctor is an open-source, zero-dependency, single-file CLI that audits your GitHub Actions workflows for security & config smells (unpinned actions, script injection, over-broad permissions, `pull_request_target` checkout, missing `permissions`/`timeout`/`concurrency`). One command, no install, with a 0–100 health score and a CI gate (exit code 0 / 2 / 3). See [Install](#install--run) and [Options](#options).
+> **English**: ghadoctor is an open-source, zero-dependency, single-file CLI that audits your GitHub Actions workflows for security & config smells (unpinned actions, script injection, over-broad permissions, `pull_request_target` checkout, missing `permissions`/`timeout`/`concurrency`). One command, no install, with a 0–100 health score and a CI gate (exit code 0 / 2 / 3). See [安装与运行](#安装与运行) and [选项](#选项).
 
 > 差异化：actionlint / zizmor 是重型工具（需装 / 编译 / 配置），ghadoctor 是
 > 零依赖单文件、确定性强、开箱即跑，并附健康分 + CI 门禁，填补「轻量零依赖」
-> 缝隙（与 family 一贯范式一致：重型工具占满 → 我们做零依赖轻量版）。
+> 缝隙（与系列一贯范式一致：重型工具占满 → 我们做零依赖轻量版）。
 
-## 安装 / 运行（Install / Run）
+## 安装与运行
 
 零依赖，仅需 Node.js（>=18，测试依赖 `node --test`）。无需 `npm install`：
 
@@ -121,7 +122,7 @@ node --test test.js && node test/smoke-cli.js
 
 ## 作者
 
-由 **ReTr · huanweide** 维护 · [GitHub 主页](https://github.com/huanweide)
+由 **huanweide** 维护 · [GitHub 主页](https://github.com/huanweide)
 
 ## CI 门禁用法
 
@@ -140,4 +141,4 @@ node --test test.js && node test/smoke-cli.js
 - 离线 / 跨平台：Node 18+ 即可，不联网、不挑系统。
 - 一键跑：`node index.js --root ./src`（详见上方用法）。
 
-← [回到代码健康家族总览](https://github.com/huanweide/family-showcase)
+← [回到零依赖 CLI 系列总览](https://github.com/huanweide/family-showcase)
